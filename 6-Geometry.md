@@ -1,4 +1,6 @@
-# Geometry (Jiangly)
+# Geometry
+
+## Geometry (Jiangly)
 
 ```c++
 using i64 = long long;

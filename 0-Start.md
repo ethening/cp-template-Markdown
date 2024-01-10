@@ -8,6 +8,12 @@
 	g++ -Wall -Wfatal-errors -Wshadow -g -std=c++2a $< -o $@ -O2
 ```
 
+## Code Runner
+
+```sh
+g++ -g -std=c++20 -fsanitize=address,undefined -fno-sanitize-recover -fstack-protector-all -O2 $fileName -o $fileNameWithoutExt
+```
+
 ## Template
 
 ```cpp
@@ -30,27 +36,29 @@ bool chmax(T &x, T val) { if (x < val) { x = val; return true; } return false; }
 #define DEBUG 1
 #define MULTI_TEST 1
 
-void solve() {
+void solve(int TC) {
 	int n;
 	cin >> n;
 	vector<int> a(n);
-	for (auto &o: a) {
-		cin >> o;
+	for (int i = 0; i < n; i++) {
+		cin >> a[i];
 	}
 }
 
 int main() {
 	cin.tie(0)->sync_with_stdio(0);
-
-	if (MULTI_TEST) {
-		int t;
-		cin >> t;
-		while (t--) {
-			solve();
-		}
-	}
-	else {
-		solve();
+	cout << fixed << setprecision(9);
+	int t = 1;
+	if (MULTI_TEST) cin >> t;
+	for (int _ = 1; _ <= t; _++) {
+		solve(_);
 	}
 }
+```
+
+## Pragma
+
+```c++
+#pragma GCC optimize("Ofast")
+#pragma GCC target("avx2")
 ```

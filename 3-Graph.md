@@ -445,3 +445,145 @@ int main() {
 	return 0;
 }
 ```
+
+## Edge Biconnected Component
+
+```c++
+using i64 = long long;
+
+std::set<std::pair<int, int>> E;
+struct EBCC {
+    int n;
+    std::vector<std::vector<int>> adj;
+    std::vector<int> stk;
+    std::vector<int> dfn, low, bel;
+    int cur, cnt;
+
+    EBCC() {}
+    EBCC(int n) {
+        init(n);
+    }
+
+    void init(int n) {
+        this->n = n;
+        adj.assign(n, {});
+        dfn.assign(n, -1);
+        low.resize(n);
+        bel.assign(n, -1);
+        stk.clear();
+        cur = cnt = 0;
+    }
+
+    void addEdge(int u, int v) {
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+
+    void dfs(int x, int p) {
+        dfn[x] = low[x] = cur++;
+        stk.push_back(x);
+
+        for (auto y : adj[x]) {
+            if (y == p) {
+                continue;
+            }
+            if (dfn[y] == -1) {
+                E.emplace(x, y);
+                dfs(y, x);
+                low[x] = std::min(low[x], low[y]);
+            } else if (bel[y] == -1 && dfn[y] < dfn[x]) {
+                E.emplace(x, y);
+                low[x] = std::min(low[x], dfn[y]);
+            }
+        }
+
+        if (dfn[x] == low[x]) {
+            int y;
+            do {
+                y = stk.back();
+                bel[y] = cnt;
+                stk.pop_back();
+            } while (y != x);
+            cnt++;
+        }
+    }
+
+    std::vector<int> work() {
+        dfs(0, -1);
+        return bel;
+    }
+
+    struct Graph {
+        int n;
+        std::vector<std::pair<int, int>> edges;
+        std::vector<int> siz;
+        std::vector<int> cnte;
+    };
+    Graph compress() {
+        Graph g;
+        g.n = cnt;
+        g.siz.resize(cnt);
+        g.cnte.resize(cnt);
+        for (int i = 0; i < n; i++) {
+            g.siz[bel[i]]++;
+            for (auto j : adj[i]) {
+                if (bel[i] < bel[j]) {
+                    g.edges.emplace_back(bel[i], bel[j]);
+                } else if (i < j) {
+                    g.cnte[bel[i]]++;
+                }
+            }
+        }
+        return g;
+    }
+};
+```
+
+## Two Sat
+
+```cpp
+struct TwoSat {
+    int n;
+    std::vector<std::vector<int>> e;
+    std::vector<bool> ans;
+    TwoSat(int n) : n(n), e(2 * n), ans(n) {}
+    void addClause(int u, bool f, int v, bool g) {
+        e[2 * u + !f].push_back(2 * v + g);
+        e[2 * v + !g].push_back(2 * u + f);
+    }
+    bool satisfiable() {
+        std::vector<int> id(2 * n, -1), dfn(2 * n, -1), low(2 * n, -1);
+        std::vector<int> stk;
+        int now = 0, cnt = 0;
+        std::function<void(int)> tarjan = [&](int u) {
+            stk.push_back(u);
+            dfn[u] = low[u] = now++;
+            for (auto v : e[u]) {
+                if (dfn[v] == -1) {
+                    tarjan(v);
+                    low[u] = std::min(low[u], low[v]);
+                } else if (id[v] == -1) {
+                    low[u] = std::min(low[u], dfn[v]);
+                }
+            }
+            if (dfn[u] == low[u]) {
+                int v;
+                do {
+                    v = stk.back();
+                    stk.pop_back();
+                    id[v] = cnt;
+                } while (v != u);
+                ++cnt;
+            }
+        };
+        for (int i = 0; i < 2 * n; ++i) if (dfn[i] == -1) tarjan(i);
+        for (int i = 0; i < n; ++i) {
+            if (id[2 * i] == id[2 * i + 1]) return false;
+            ans[i] = id[2 * i] > id[2 * i + 1];
+        }
+        return true;
+    }
+    std::vector<bool> answer() { return ans; }
+};
+
+```

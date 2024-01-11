@@ -130,3 +130,194 @@ int solve(int x) {
   return dfs(dim.size() - 1, 11, 1);
 }
 ```
+
+## Nanjing 2018 B Alien Trick
+
+```cpp
+#include "bits/stdc++.h"
+#include <iomanip>
+#define int long long
+using namespace std;
+
+using ll = long long;
+using LL = long long;
+
+const int N = 3e5 + 11;
+const int INF = 1LL << 60;
+
+int a[N], dp[N], cnt[N];
+
+// 1-based
+
+
+int ps1[N];
+// ps2[N];
+
+int s0(int l, int r){
+	return r - l + 1;
+}
+int s1(int l, int r){
+	return ps1[r] - ps1[l - 1];
+}
+// int s2(int l, int r){
+// 	return ps2[r] - ps2[l - 1];
+// }
+
+int cost_L(int l, int m){
+	return a[m] * s0(l, m - 1) - s1(l, m - 1);
+}
+
+int cost_R(int m, int r){
+	return s1(m + 1, r) - a[m] * s0(m + 1, r);
+}
+
+int Cost(int l, int r){
+	int m = (l + r) / 2;
+	// cout << cost_L(l, m) << ' ' << cost_R(m, r) << '\n';
+	return cost_L(l, m) + cost_R(m, r);
+}
+
+int n, k;
+
+struct OptDS {
+	struct Node {
+		int l, r;
+		int id;
+	};
+
+	vector<Node> v;
+
+	int getOpt(int x) {
+		int n = v.size();
+		int L = 0;
+		int R = n - 1;
+		while (L <= R) {
+			int mid = (L + R) / 2;
+			if (v[mid].l <= x && x <= v[mid].r) {
+				return v[mid].id;
+			}
+			else if (v[mid].l > x) {
+				R = mid - 1;
+			}
+			else {
+				L = mid + 1;
+			}
+		}
+		return -1;
+	}
+
+	bool better(int id1, int id2, int x) {
+		ll c1 = dp[id1] + Cost(id1 + 1, x);
+		ll c2 = dp[id2] + Cost(id2 + 1, x);
+		if (c1 != c2) return c1 <= c2;
+		return cnt[id1] < cnt[id2];
+	}
+
+	void insert(int x) {
+		while (!v.empty() && v.back().l > x && better(x, v.back().id, v.back().l)) v.pop_back();
+
+		if (v.empty()) {
+			v.push_back({x + 1, n, x});
+			return;
+		}
+
+		if (better(v.back().id, x, n)) return;
+
+		int L = max(x + 1, v.back().l);
+		int R = n;
+
+		while (L <= R) {
+			int mid = (L + R) / 2;
+			if (better(x, v.back().id, mid)) {
+				R = mid - 1;
+			}
+			else {
+				L = mid + 1;
+			}
+		}
+		if (L <= n) {
+			v.back().r = L - 1;
+			v.push_back({L, n, x});
+		}
+	}
+
+	void print() {
+		for (auto [l, r, id]: v) {
+			cout << "l: " << l << ", r: " << r << ", id: " << id << endl;
+		}
+	}
+};
+
+pair<ll, ll> calc(ll lambda){
+	fill(dp + 1, dp + n + 1, INF);
+	fill(cnt, cnt + n + 1, 0);
+
+	OptDS DS;
+	DS.insert(0);
+	for (int i = 1; i <= n; i++) {
+		int opt = DS.getOpt(i);
+		dp[i] = dp[opt] + Cost(opt + 1, i) + lambda;
+		cnt[i] = cnt[opt] + 1;
+
+		DS.insert(i);
+
+		// cout << "i: " << i << endl;
+		// DS.print();
+	}
+
+	// for (int i = 1; i <= n; i++) {
+	// 	// find opt
+	// 	int opt = 0, cur = INF;
+	// 	for (int j = 0; j < i; j++) {
+	// 		int cost = dp[j] + Cost(j + 1, i) + lambda;
+	// 		if (cost < cur) {
+	// 			opt = j;
+	// 			cur = cost;
+	// 		}
+	// 	}
+	// 	dp[i] = dp[opt] + Cost(opt + 1, i) + lambda;
+	// 	cnt[i] = cnt[opt] + 1;
+	// }
+	return {dp[n], cnt[n]};
+}
+
+void solve(int TC) {
+	cin >> n >> k;
+	for(int i = 1; i <= n; i++){
+		cin >> a[i];
+		ps1[i] = ps1[i - 1] + a[i];
+		// ps2[i] = ps2[i - 1] + a[i] * i;
+	}
+
+	// printf("(%lld %lld) => %lld\n", 1, 3, Cost(1, 3));
+	// printf("(%lld %lld) => %lld\n", 1, 4, Cost(1, 4));
+	ll L = 0, R = 3 * 1E15;
+	while (L <= R) {
+		int mid = (L + R) / 2;
+		auto [c, photo] = calc(mid);
+		if (photo > k) {
+			L = mid + 1;
+		}
+		else {
+			R = mid - 1;
+		}
+	}
+	auto [c, ph] = calc(L);
+	// cout << c << ' ' << ph << endl;
+	ll ans = c - k * L;
+	cout << ans << '\n';
+	return;
+}
+
+int32_t main() {
+	cin.tie(0)->sync_with_stdio(0);
+	cout << fixed << setprecision(10);
+
+	int t = 1;
+	// cin >> t;
+	for (int i = 1; i <= t; i++) {
+		solve(i);
+	}
+
+}
+```

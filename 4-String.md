@@ -347,3 +347,270 @@ string min_cyclic_string(string s) {
     return s.substr(ans, n / 2);
 }
 ```
+
+## Qinhuangdao C Palindrome
+
+Erase l to r of string S costing r - l + 1, min cost to make it palindrome, and numbers of ways
+```cpp
+#include "bits/stdc++.h"
+#include <iostream>
+using namespace std;
+
+
+using ll = long long;
+using LL = long long;
+
+using pii = pair<int, int>;
+using pil = pair<int, ll>;
+using pli = pair<ll, int>;
+using pll = pair<ll, ll>;
+
+inline int lg(int __n) {
+	return sizeof(int) * __CHAR_BIT__	- 1 - __builtin_clz(__n);
+}
+
+template<size_t CHARSETSZ = 26>
+struct PalindromesAutomaton {
+	/**
+	 * sz: 节点数
+	 * root0: 偶数回文串的根
+	 * root1：奇数根
+	 * link: 最大回文后缀指针。也叫后缀指针或者失配指针。link指针反向构成一棵树
+	 * len: 每个节点对应回文串的长度
+	 * sum: 每个节点对应回文串包含的回文后缀数目
+	 * ch: 儿子指针
+	 */
+	int sz, root0, root1;
+	vector<int> link, len, rep;
+	vector<array<int, CHARSETSZ>> ch;
+
+	vector<vector<int>> sp;
+
+	PalindromesAutomaton(int n) :sz(0), ch(n), link(n), len(n), rep(n), sp(20) {
+		root0 = sz++;
+		root1 = sz++;
+		len[root0] = 0;
+		// 奇数根的长度初始化为-1
+		len[root1] = -1;
+		// 两个根的link都指向奇数根
+		link[root0] = root1;
+		link[root1] = root1;
+	}
+
+	int getId(char c) {
+		return c - 'a';
+	}
+
+	inline int getLink(const string&s, int i, int u){
+		while (i - len[u] - 1 < 0 || s[i] != s[i - len[u] - 1]) u = link[u];
+		return u;
+	}
+
+	void build(string& s) {
+		int ans = 0, last = root1;
+		for (int i = 0; i < s.length(); i++) {
+			int c = getId(s[i]);
+			int u = getLink(s, i, last);
+
+			if (!ch[u][c]) {
+				int cur = sz++;
+				int v = getLink(s, i, link[u]);
+				len[cur] = len[u] + 2;
+				link[cur] = ch[v][c];
+				ch[u][c] = cur;
+			}
+
+			last = ch[u][c];
+			rep[i] = last;
+			// cout << "i: " << i << " rep: " << rep[i] << " " << " len: " << len[rep[i]] << " " << link[rep[i]] << " " << len[link[rep[i]]] << endl;
+		}
+	}
+
+	void buildsp() {
+		for (int i = 0; i < 20; i++) sp[i].resize(sz);
+		for (int i = 0; i < sz; i++) {
+			sp[0][i] = link[i];
+		}
+		for (int i = 1; i < 20; i++) {
+			for (int j = 0; j < sz; j++) {
+				sp[i][j] = sp[i - 1][sp[i - 1][j]];
+			}
+		}
+	}
+
+	int find(int endpos, int mxlen) {
+		int x = rep[endpos];
+		// cout << "*" << endpos << " " << x << " " << len[x] << endl;
+		for (int i = 19; i >= 0; i--) {
+			if (len[sp[i][x]] >= mxlen) {
+				x = sp[i][x];
+				// cout << "#" << x << " " << len[x] << endl;
+			}
+		}
+		if (len[x] > mxlen) {
+			x = sp[0][x];
+		}
+		// cout << "**" << len[x] << endl;
+		return len[x];
+	}
+};
+
+typedef uint64_t ull;
+struct H {
+	ull x; H(ull x=0) : x(x) {}
+	H operator+(H o) { return x + o.x + (x + o.x < x); }
+	H operator-(H o) { return *this + ~o.x; }
+	H operator*(H o) { auto m = (__uint128_t)x * o.x;
+		return H((ull)m) + (ull)(m >> 64); }
+	ull get() const { return x + !~x; }
+	bool operator==(H o) const { return get() == o.get(); }
+	bool operator<(H o) const { return get() < o.get(); }
+};
+static const H C = (ll)1e11+3; // (order ~ 3e9; random also ok)
+
+struct HashInterval {
+	vector<H> ha, pw;
+	HashInterval(string& str) : ha(size(str)+1), pw(ha) {
+		pw[0] = 1;
+		for (int i = 0; i < size(str); i++) {
+			ha[i+1] = ha[i] * C + str[i],
+			pw[i+1] = pw[i] * C;
+		}
+	}
+	H hashInterval(int a, int b) { // hash [a, b)
+		return ha[b] - ha[a] * pw[b - a];
+	}
+};
+
+void solve(int TC) {
+	int n;
+	cin >> n;
+	string s;
+	cin >> s;
+	string r = s;
+	reverse(r.begin(), r.end());
+
+	HashInterval S(s), R(r);
+
+	PalindromesAutomaton SP(n + 5), RP(n + 5);
+	SP.build(s);
+	SP.buildsp();
+	RP.build(r);
+	RP.buildsp();
+
+	int q;
+	cin >> q;
+	for (int i = 0; i < q; i++) {
+		int a, b;
+		cin >> a >> b;
+		--a, --b;
+
+		auto check = [&](int len) -> bool {
+			if (S.hashInterval(a, a + len) == R.hashInterval(n - 1 - b, n - 1 - b + len)) return true;
+			else return false;
+		};
+
+		int len{};
+		{
+			int l = 1;
+			int r = (b - a + 1);
+			while (l <= r) {
+				int mid = (l + r) / 2;
+				if (check(mid)) {
+					l = mid + 1;
+				}
+				else {
+					r = mid - 1;
+				}
+			}
+
+			if (r == (b - a + 1)) {
+				cout << 0 << " " << 0 << "\n";
+				continue;
+			}
+			len = r;
+		}
+
+		// [a + len .. b - len]
+
+		int rsufplen = SP.find(b - len, (b - len) - (a + len) + 1);
+		// [a + len .. b - len - rsufplen]
+
+		int lpreplen = RP.find((n - 1) - (a + len), (b - len) - (a + len) + 1);
+		// [a + len + lpreplen .. b - len]
+
+		// cout << a + len << " - " << b - len - rsufplen << endl;
+		// cout << a + len + lpreplen << " - " << b - len << endl;
+
+		int len1 = (b - len - rsufplen) - (a + len) + 1;
+		int len2 = (b - len) - (a + len + lpreplen) + 1;
+
+		int alen = min(len1, len2);
+
+		int ways = 0;
+
+		if (len1 == alen) {
+			// find lcp(a + len - 1 .. a + len - k, b - len - rsufplen .. b - len - rsufplen - k + 1)
+
+			{
+				auto check = [&](int l) -> bool {
+					if (R.hashInterval(n - 1 - (a + len - 1), n - 1 - (a + len - 1) + l) == R.hashInterval(n - 1 - (b - len - rsufplen), n - 1 - (b - len - rsufplen) + l)) return true;
+					else return false;
+				};
+				int l = 1;
+				int r = len;
+				while (l <= r) {
+					int mid = (l + r) / 2;
+					if (check(mid)) {
+						l = mid + 1;
+					}
+					else {
+						r = mid - 1;
+					}
+				}
+
+				ways += r + 1;
+			}
+
+		}
+
+		if (len2 == alen) {
+
+			// find lcp(b - len + 1 .. b - len + k, a + len + lpreplen .. a + len + lpreplen + k - 1)
+			{
+				auto check = [&](int l) -> bool {
+					if (S.hashInterval(b - len + 1, b - len + 1 + l) == S.hashInterval(a + len + lpreplen, a + len + lpreplen + l)) return true;
+					else return false;
+				};
+				int l = 1;
+				int r = len;
+				while (l <= r) {
+					int mid = (l + r) / 2;
+					if (check(mid)) {
+						l = mid + 1;
+					}
+					else {
+						r = mid - 1;
+					}
+				}
+
+				ways += r + 1;
+			}
+		}
+
+		// cout << "ANS: ";
+		cout << alen << " " << ways << "\n";
+	}
+}
+
+
+int main() {
+	cout << fixed << setprecision(9);
+	cin.tie(0)->sync_with_stdio(0);
+	int t = 1;
+	// cin >> t;
+	for (int i = 1; i <= t; i++) {
+		solve(i);
+	}
+}
+```

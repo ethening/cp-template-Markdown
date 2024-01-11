@@ -149,3 +149,104 @@ int main() {
   return 0;
 }
 ```
+
+## Macau C
+```cpp
+#include <bits/stdc++.h>
+
+using namespace std;
+
+const int B = 400;
+const int N = 1e5 + B + 11;
+
+int n, k;
+struct Block{
+    int dp[B] = {}, last[B] = {}, nxt[B] = {};
+    bool exist[B] = {};
+	void init(){
+		fill(dp, dp + B, 0);
+		for(int i = 0; i < B; i++) last[i] = i;
+		for(int i = 0; i < B; i++) nxt[i] = B;
+		fill(exist, exist + B, false);
+	}
+    void recalc(){
+        nxt[B - 1] = B;
+        for(int i = B - 2; i >= 0; i--){
+            nxt[i] = exist[i + 1] ? i + 1 : nxt[i + 1];
+        }
+        for(int i = B - 1; i >= 0; i--){
+            if(i + k >= B || nxt[i] == B) last[i] = i, dp[i] = 0;
+            else{
+                int s = max(i + k, nxt[i]);
+                last[i] = last[s];
+                dp[i] = dp[s] + 1;
+            }
+        }
+		// cout << "nxt "; for(int i = 0; i < B; i++) cout << nxt[i] << ' '; cout << '\n';
+		// cout << "last "; for(int i = 0; i < B; i++) cout << last[i] << ' '; cout << '\n';
+		// cout << "dp "; for(int i = 0; i < B; i++) cout << dp[i] << ' '; cout << '\n';
+    }
+    void set_active(int pos){
+        exist[pos] = true;
+        recalc();
+    }
+    pair<int, int> jump(int pos){
+        return {last[pos], dp[pos]};
+    }
+    int next(int pos){
+        return nxt[pos];
+    }
+} blocks[N / B];
+
+int find_nxt(int pos){
+    while(pos <= n){
+        auto nxt = blocks[pos / B].next(pos % B);
+        if(nxt != B)
+            return (pos / B * B) + nxt;
+        pos = pos / B * B + B;
+		if(blocks[pos / B].exist[pos % B])
+			return pos;
+    }
+    return n + 1;
+}
+
+int qry(){
+    int pos = 0, ans = 0;
+    while(pos <= n){
+        auto [last, add] = blocks[pos / B].jump(pos % B);
+        pos = (pos / B * B) + last; ans += add;
+		// cout << "POS " << pos << " " << "ANS " << ans << '\n';
+
+		int nxt = find_nxt(pos);
+		// cout << "NXT " << nxt << '\n';
+		if (nxt > n) break;
+
+		pos = max(pos + k, nxt); ans++;
+		// cout << "POS " << pos << endl;
+    }
+    return ans;
+}
+
+void solve(){
+    cin >> n >> k;
+	for(int i = 0; i < n / B + 1; i++){
+		blocks[i].init();
+	}
+    for(int i = 0; i < n; i++){
+        int v; cin >> v;
+        blocks[v / B].set_active(v % B);
+
+        int ans = qry();
+        cout << ans << " \n"[i == n - 1];
+    }
+
+}
+
+int32_t main(){
+    cin.tie(0)->sync_with_stdio(false);
+    int t; cin >> t;
+    while(t--){
+        solve();
+    }
+}
+```

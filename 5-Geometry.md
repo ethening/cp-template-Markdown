@@ -221,4 +221,363 @@ int32_t main() {
 }
 ```
 
+## Macau F
 
+```cpp
+#include <bits/stdc++.h>
+#pragma GCC optimize("unroll-loops, Ofast")
+#define sz(a) (int) (a).size()
+using namespace std;
+
+typedef double LD;
+
+long double eps = 1e-6;
+struct P{
+    P(LD x, LD y) : x(x), y(y){};
+    P(int x, int y) : x(x), y(y){};
+    bool operator== (P p) const { return fabs(x - p.x) < eps && fabs(y - p.y) < eps; }
+    P operator- (P p) const { return P {x - p.x, y - p.y}; }
+    LD cross(P p) const { return x * p.y - y * p.x; }
+    LD cross(P a, P b) const { return (a - *this).cross(b - *this); }
+    LD dot(P p) const { return x * p.x + y * p.y; }
+    LD x, y;
+};
+
+int sgn(LD x){
+    if(fabs(x) < eps) return 0;
+    return x > 0 ? 1 : -1;
+}
+
+string substring(const string& s, int l, int r){
+    return s.substr(l, r - l + 1);
+}
+
+struct HP{
+    HP(int a, int b, int c) : a(a), b(b), c(c){};
+    HP(string s) {
+        s = substring(s, 1, sz(s) - 2);
+        vector<int> sep;
+        sep.push_back(-1);
+        for(int i = 0; i < sz(s); i++) if(s[i] ==',') sep.push_back(i);
+        sep.push_back(sz(s));
+        vector<int> val;
+        for(int i = 0; i < 3; i++){
+            string t = substring(s, sep[i] + 1, sep[i + 1] - 1);
+            val.push_back(stoi(t));
+        }
+        HP::a = val[0], HP::b = val[1], HP::c = val[2];
+    }
+    P at(LD t) const {
+        if(sgn(a) && (!sgn(b) || fabs(a) < fabs(b)))
+            return {-c / a + t * b, -t * a};
+        else
+            return {-t * b, -c / b + t * a};
+    }
+    LD a, b, c;
+    bool in(const P& p){
+        return a * p.x + b * p.y + c >= 0;
+    }
+};
+
+typedef P V;
+
+typedef vector<P> S;
+
+const int LEAF = 0;
+const int AND = 1;
+const int OR = 2;
+const int XOR = 3;
+const int NOT = 4;
+const int INF = 1 << 30;
+
+
+string STR;
+
+struct node{
+    int type = -1;
+    HP plane {INF, INF, INF};
+    vector<node*> ch;
+
+    bool in(const P& x){
+        if(type == LEAF){
+            return plane.in(x);
+
+        }else if(type == AND){
+            return ch[0]->in(x) && ch[1]->in(x);
+
+        }else if(type == OR){
+            return ch[0]->in(x) || ch[1]->in(x);
+
+        }else if(type == XOR){
+            return ch[0]->in(x) ^ ch[1]->in(x);
+
+        }else if(type == NOT){
+            return !ch[0]->in(x);
+
+        }
+    }
+    node(int l, int r){
+        // cout << l << ' ' << r << endl;
+        if(STR[l] == '['){
+            // atomic
+            type = LEAF;
+            plane = HP(substring(STR, l, r - 1));
+            return;
+        }else{
+            int net = 0;
+            // cout << "HELLO" << ' ' << substring(STR, l, r - 1) << endl;
+            for(int i = l + 1; i < r; i++){
+                if(STR[i] == '(') ++net;
+                else if(STR[i] == ')') --net;
+
+                else if(net == 0){
+                    if (STR[i] == '&') {
+                        type = AND;
+                        ch = vector<node*> {
+                            new node(l + 1, i),
+                            new node(i + 1, r - 1)
+                        };
+                    } else if (STR[i] =='|') {
+                        type = OR;
+                        ch = vector<node*> {
+                            new node(l + 1, i),
+                            new node(i + 1, r - 1)
+                        };
+                    } else if (STR[i] =='^') {
+                        type = XOR;
+                        ch = vector<node*> {
+                            new node(l + 1, i),
+                            new node(i + 1, r - 1)
+                        };
+                    } else if (STR[i] =='!') {
+                        type = NOT;
+                        ch = vector<node*> {
+                            new node(i + 1, r - 1)
+                        };
+                    }
+                }
+            }
+        }
+    }
+};
+
+
+P operator+ (const P& a, const P& b){
+    return P(a.x + b.x, a.y + b.y);
+}
+
+P operator* (const P& a, const LD& c){
+    return P(a.x * c, a.y * c);
+}
+
+P operator/ (const P& a, const LD& c){
+    return P(a.x / c, a.y / c);
+}
+
+bool onSegment(P s, P e, P p) {
+    return sgn(p.cross(s, e)) == 0 && sgn((s - p).dot(e - p)) <= 0;
+}
+
+LD cross(P a, P b){ return a.x * b.y - a.y * b.x; }
+P center(const S& v) {
+    P res(0, 0); double A = 0;
+    for (int i = 0, j = sz(v) - 1; i < sz(v); j = i++) {
+        res = res + (v[i] + v[j]) * cross(v[j], v[i]);
+        A += cross(v[j], v[i]);
+    }
+    return res / A / 3;
+}
+
+vector<S> PS;
+
+P lineInter(const P& s1, const P& e1, const P& s2, const P& e2) {
+    auto d = (e1 - s1).cross(e2 - s2);
+    if (fabs(d) < eps)
+        return {INF, INF};
+    auto p = s2.cross(e1, e2), q = s2.cross(e2, s1);
+    return (s1 * p + e1 * q) / d;
+}
+
+P segInter(const P& a, const P& b, const P& c, const P& d) {
+    auto oa = c.cross(d, a), ob = c.cross(d, b),
+         oc = a.cross(b, c), od = a.cross(b, d);
+    if (sgn(oa) * sgn(ob) < 0 && sgn(oc) * sgn(od) < 0)
+        return (a * ob - b * oa) / (ob - oa);
+    return {INF, INF};
+}
+
+void print(S v){
+    for(auto u : v){
+        printf("(%lf, %lf) ", u.x, u.y);
+    }
+    printf("\n");
+    fflush(stdout);
+}
+
+vector<S> split(const S& v, const HP& p){
+    // assert(v.size() >= 3);
+    P s2 = p.at(-2e6), e2 = p.at(2e6);
+
+    vector<pair<int, P>> inter;
+    for(int i = 0; i < sz(v); i++){
+        P s1 = v[i], e1 = v[(i + 1) % sz(v)];
+        P a = segInter(s1, e1, s2, e2);
+        if(fabs(a.x) <= 2e3 && fabs(a.y) <= 2e3){
+            inter.push_back({i, a});
+        }
+        // cout << a.x << ' ' << a.y << endl;
+    }
+
+    // assert(inter.size() <= 2);
+
+    if(inter.empty()){
+        for(int i = 0; i < sz(v); i++){
+            P s1 = v[i], e1 = v[(i + 1) % sz(v)];
+            P a = lineInter(s1, e1, s2, e2);
+            if(a == e1){
+                inter.push_back({i, a});
+            }
+        }
+        if(inter.size() == 2 && !(inter[0].first + 1 == inter[1].first || inter[0].first == 0 && inter[1].first == sz(v) - 1)){
+            vector<S> res;
+            {
+                S s {inter[0].second};
+                for(int id = inter[1].first; id != inter[0].first; id = (id + 1) % sz(v)){
+                    int vid = (id + 1) % sz(v);
+                    s.push_back(v[vid]);
+                }
+                res.push_back(s);
+                // assert(s.size() >= 3);
+            }
+            {
+                S s {inter[1].second};
+                for(int id = inter[0].first; id != inter[1].first; id = (id + 1) % sz(v)){
+                    int vid = (id + 1) % sz(v);
+                    s.push_back(v[vid]);
+                }
+                res.push_back(s);
+                // assert(s.size() >= 3);
+            }
+            return res;
+        }else{
+            return {v};
+        }
+    }else if(inter.size() == 1){
+        for(int i = 0; i < sz(v); i++){
+            P s1 = v[i], e1 = v[(i + 1) % sz(v)];
+            P a = lineInter(s1, e1, s2, e2);
+            if(a == e1){
+                inter.push_back({i, a});
+                break;
+            }
+        }
+        // assert(inter.size() == 2);
+        if(inter.size() == 2){
+            vector<S> res;
+            {
+                S s {inter[0].second};
+                for(int id = inter[1].first; id != inter[0].first; id = (id + 1) % sz(v)){
+                    int vid = (id + 1) % sz(v);
+                    s.push_back(v[vid]);
+                }
+                res.push_back(s);
+                // assert(s.size() >= 3); OK
+            }
+            {
+                S s {inter[0].second};
+                for(int id = inter[0].first; id != (inter[1].first + 1) % sz(v); id = (id + 1) % sz(v)){
+                    int vid = (id + 1) % sz(v);
+                    s.push_back(v[vid]);
+                }
+                res.push_back(s);
+            }
+            return res;
+        }else{
+            return {v};
+        }
+
+    }else{
+        vector<S> res;
+        {
+            S s {inter[0].second, inter[1].second};
+            for(int id = inter[1].first; id != inter[0].first; id = (id + 1) % sz(v)){
+                int vid = (id + 1) % sz(v);
+                s.push_back(v[vid]);
+            }
+            res.push_back(s);
+        }
+        {
+            S s {inter[1].second, inter[0].second};
+            for(int id = inter[0].first; id != inter[1].first; id = (id + 1) % sz(v)){
+                int vid = (id + 1) % sz(v);
+                s.push_back(v[vid]);
+            }
+            res.push_back(s);
+        }
+        return res;
+    }
+}
+
+void dfs0(node* v){
+    for(auto u : v->ch){
+        dfs0(u);
+    }
+    if(v->type == LEAF){
+        auto& plane = v->plane;
+        vector<S> NPS;
+        for(S& v : PS){
+            for(const S& u : split(v, plane)){
+                // assert(u.size() >= 3);
+                if(u.size() < 3) continue;
+                NPS.push_back(u);
+                // print(u);
+            }
+        }
+        PS = NPS;
+    }
+}
+
+LD polygonArea(const S& v){
+    LD a = v.back().cross(v[0]);
+    for(int i = 0; i < sz(v) - 1; i++)
+        a += v[i].cross(v[i + 1]);
+    return a / 2;
+}
+
+void solve(){
+    int x0, x1, y0, y1; cin >> x0 >> x1 >> y0 >> y1;
+    // cout << x0 << ' ' << x1 << ' ' << y0 << ' ' << y1 << endl;
+    {
+        S init = S{P{x0, y0}, P{x1, y0}, P{x1, y1}, P{x0, y1}};
+        // print(init);
+        PS.push_back(init);
+    }
+    cin >> STR;
+
+    node root(0, sz(STR));
+    dfs0(&root);
+
+    LD ans = 0;
+    for(auto v : PS){
+        LD area = polygonArea(v);
+        // print(v); cout << area << endl;
+        P g = center(v);
+        bool black = root.in(g);
+        // print(v); cout << area << endl;
+        // cout << (black ? "BLACK" : "WHITE") << endl;
+        if(black) ans += area;
+    }
+    cout << ans << '\n';
+}
+
+int32_t main(){
+#ifndef LOCAL
+    cin.tie(0)->sync_with_stdio(false);
+#endif
+    cout << fixed << setprecision(12);
+    int t = 1; // cin >> t;
+    while(t--){
+        solve();
+    }
+}
+```

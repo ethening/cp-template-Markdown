@@ -375,7 +375,7 @@ $if(logo)$
 $endif$
 $endif$
 
-\title{\vspace{50mm} \huge Competitive Programming Template \\[20pt]}
+\title{\vspace{50mm} \huge Random Useful Resources (from oiwiki etc.) \\[20pt]}
 \author{ethening \\[10pt] The Chinese University of Hong Kong}
 \date{\today}
 

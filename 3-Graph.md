@@ -1,589 +1,237 @@
 # Graph
 
-## SCC
+## LGV Lemma
 
-```c++
-struct SCC {
-    int n;
-    std::vector<std::vector<int>> adj;
-    std::vector<int> stk;
-    std::vector<int> dfn, low, bel;
-    int cur, cnt;
+## 简介
 
-    SCC() {}
-    SCC(int n) {
-        init(n);
-    }
+Lindström–Gessel–Viennot lemma，即 LGV 引理，可以用来处理有向无环图上不相交路径计数等问题。
 
-    void init(int n) {
-        this->n = n;
-        adj.assign(n, {});
-        dfn.assign(n, -1);
-        low.resize(n);
-        bel.assign(n, -1);
-        stk.clear();
-        cur = cnt = 0;
-    }
+LGV 引理仅适用于 **有向无环图**。
 
-    void addEdge(int u, int v) {
-        adj[u].push_back(v);
-    }
+题意：有一个 $n\times m$ 的格点棋盘，其中某些格子可走，某些格子不可走。有一只海龟从 $(x, y)$ 只能走到 $(x+1, y)$ 和 $(x, y+1)$ 的位置，求海龟从 $(1, 1)$ 到 $(n, m)$ 的不相交路径数对 $10^9+7$ 取模之后的结果。$2\le n,m\le3000$。
 
-    void dfs(int x) {
-        dfn[x] = low[x] = cur++;
-        stk.push_back(x);
+比较直接的 LGV 引理的应用。考虑所有合法路径，发现从 $(1,1)$ 出发一定要经过 $A=\{(1,2), (2,1)\}$，而到达终点一定要经过 $B=\{(n-1, m), (n, m-1)\}$，则 $A, B$ 可立即选定。应用 LGV 引理可得答案为：
 
-        for (auto y : adj[x]) {
-            if (dfn[y] == -1) {
-                dfs(y);
-                low[x] = std::min(low[x], low[y]);
-            } else if (bel[y] == -1) {
-                low[x] = std::min(low[x], dfn[y]);
-            }
-        }
+$$
+\begin{vmatrix}
+f(a_1, b_1) & f(a_1, b_2) \\
+f(a_2, b_1) & f(a_2, b_2)
+\end{vmatrix} = f(a_1, b_1)\times f(a_2, b_2) - f(a_1, b_2)\times f(a_2, b_1)
+$$
 
-        if (dfn[x] == low[x]) {
-            int y;
-            do {
-                y = stk.back();
-                bel[y] = cnt;
-                stk.pop_back();
-            } while (y != x);
-            cnt++;
-        }
-    }
-
-    std::vector<int> work() {
-        for (int i = 0; i < n; i++) {
-            if (dfn[i] == -1) {
-                dfs(i);
-            }
-        }
-        return bel;
-    }
-};
-```
-
-## Centroid Decomposition
-
-```c++
-void solve() {
-	int n, T;
-	cin >> n >> T;
-
-	vector<vector<array<int, 2>>> g(n);
-
-	for (int i = 1; i < n; i++) {
-		int u, v, w;
-		cin >> u >> v >> w;
-		u--, v--;
-		g[u].push_back({v, w});
-		g[v].push_back({u, w});
-	}
-
-	int q;
-	cin >> q;
-
-	vector<vector<array<int, 3>>> qry(n);
-	for (int i = 0; i < q; i++) {
-		int a, b;
-		cin >> a >> b;
-		a--, b--;
-		qry[0].push_back({a, b, i});
-	}
-	vector<ll> ans(q, inf);
-
-	vector<bool> vis(n);
-	vector<int> siz(n), bel(n);
-
-	auto dfs = [&](auto self, int x, int p) -> void {
-		siz[x] = 1;
-		for (auto [y, w] : g[x]) {
-			if (y == p) {
-				continue;
-			}
-			self(self, y, x);
-			siz[x] += siz[y];
-		}
-	};
-	dfs(dfs, 0, -1);
-
-	vector<ll> dep(n);
-	auto solve = [&](auto &&self, int r) -> void {
-		auto Q = std::move(qry[r]);
-
-		auto find = [&](auto self, int x, int p, int s) -> int {
-			for (auto [y, _] : g[x]) {
-				if (y == p || vis[y] || 2 * siz[y] <= s) {
-					continue;
-				}
-				return self(self, y, x, s);
-			}
-			return x;
-		};
-		r = find(find, r, -1, siz[r]);
-		vis[r] = true;
-
-		auto dfs = [&](auto self, int x, int p) -> void {
-			siz[x] = 1;
-			for (auto [y, w] : g[x]) {
-				if (y == p || vis[y]) {
-					continue;
-				}
-				dep[y] = dep[x] + w;
-				bel[y] = x == r ? y : bel[x];
-				self(self, y, x);
-				siz[x] += siz[y];
-			}
-		};
-		dfs(dfs, r, -1);
-
-		for (auto [a, b, i] : Q) {
-			ans[i] = min(ans[i], dep[a] + dep[b]);
-			if (bel[a] == bel[b]) {
-				qry[bel[a]].push_back({a, b, i});
-			}
-		}
-		for (auto [y, _] : g[r]) {
-			if (!vis[y]) {
-				self(self, y);
-			}
-		}
-	};
-	solve(solve, 0);
-
-	for (int i = 0; i < q; i++) {
-		cout << ans[i] << "\n";
-	}
-}
-```
-
-## Heavy Light Decomposition
-
-```c++
-struct HLD {
-    int n;
-    std::vector<int> siz, top, dep, parent, in, out, seq;
-    std::vector<std::vector<int>> adj;
-    int cur;
-
-    HLD() {}
-    HLD(int n) {
-        init(n);
-    }
-    void init(int n) {
-        this->n = n;
-        siz.resize(n);
-        top.resize(n);
-        dep.resize(n);
-        parent.resize(n);
-        in.resize(n);
-        out.resize(n);
-        seq.resize(n);
-        cur = 0;
-        adj.assign(n, {});
-    }
-    void addEdge(int u, int v) {
-        adj[u].push_back(v);
-        adj[v].push_back(u);
-    }
-    void work(int root = 0) {
-        top[root] = root;
-        dep[root] = 0;
-        parent[root] = -1;
-        dfs1(root);
-        dfs2(root);
-    }
-    void dfs1(int u) {
-        if (parent[u] != -1) {
-            adj[u].erase(std::find(adj[u].begin(), adj[u].end(), parent[u]));
-        }
-
-        siz[u] = 1;
-        for (auto &v : adj[u]) {
-            parent[v] = u;
-            dep[v] = dep[u] + 1;
-            dfs1(v);
-            siz[u] += siz[v];
-            if (siz[v] > siz[adj[u][0]]) {
-                std::swap(v, adj[u][0]);
-            }
-        }
-    }
-    void dfs2(int u) {
-        in[u] = cur++;
-        seq[in[u]] = u;
-        for (auto v : adj[u]) {
-            top[v] = v == adj[u][0] ? top[u] : v;
-            dfs2(v);
-        }
-        out[u] = cur;
-    }
-    int lca(int u, int v) {
-        while (top[u] != top[v]) {
-            if (dep[top[u]] > dep[top[v]]) {
-                u = parent[top[u]];
-            } else {
-                v = parent[top[v]];
-            }
-        }
-        return dep[u] < dep[v] ? u : v;
-    }
-
-    int dist(int u, int v) {
-        return dep[u] + dep[v] - 2 * dep[lca(u, v)];
-    }
-
-    int jump(int u, int k) {
-        if (dep[u] < k) {
-            return -1;
-        }
-
-        int d = dep[u] - k;
-
-        while (dep[top[u]] > d) {
-            u = parent[top[u]];
-        }
-
-        return seq[in[u] - dep[u] + d];
-    }
-
-    bool isAncester(int u, int v) {
-        return in[u] <= in[v] && in[v] < out[u];
-    }
-
-    int rootedParent(int u, int v) {
-        std::swap(u, v);
-        if (u == v) {
-            return u;
-        }
-        if (!isAncester(u, v)) {
-            return parent[u];
-        }
-        auto it = std::upper_bound(adj[u].begin(), adj[u].end(), v, [&](int x, int y) {
-            return in[x] < in[y];
-        }) - 1;
-        return *it;
-    }
-
-    int rootedSize(int u, int v) {
-        if (u == v) {
-            return n;
-        }
-        if (!isAncester(v, u)) {
-            return siz[v];
-        }
-        return n - siz[rootedParent(u, v)];
-    }
-
-    int rootedLca(int a, int b, int c) {
-        return lca(a, b) ^ lca(b, c) ^ lca(c, a);
-    }
-};
-```
-
-## Block Cut Tree
-
-```c++
-struct BlockCutTree {
-    int n;
-    std::vector<std::vector<int>> adj;
-    std::vector<int> dfn, low, stk;
-    int cnt, cur;
-    std::vector<std::pair<int, int>> edges;
-
-    BlockCutTree() {}
-    BlockCutTree(int n) {
-        init(n);
-    }
-
-    void init(int n) {
-        this->n = n;
-        adj.assign(n, {});
-        dfn.assign(n, -1);
-        low.resize(n);
-        stk.clear();
-        cnt = cur = 0;
-        edges.clear();
-    }
-
-    void addEdge(int u, int v) {
-        adj[u].push_back(v);
-        adj[v].push_back(u);
-    }
-
-    void dfs(int x) {
-        stk.push_back(x);
-        dfn[x] = low[x] = cur++;
-
-        for (auto y : adj[x]) {
-            if (dfn[y] == -1) {
-                dfs(y);
-                low[x] = std::min(low[x], low[y]);
-                if (low[y] == dfn[x]) {
-                    int v;
-                    do {
-                        v = stk.back();
-                        stk.pop_back();
-                        edges.emplace_back(n + cnt, v);
-                    } while (v != y);
-                    edges.emplace_back(x, n + cnt);
-                    cnt++;
-                }
-            } else {
-                low[x] = std::min(low[x], dfn[y]);
-            }
-        }
-    }
-
-    std::pair<int, std::vector<std::pair<int, int>>> work() {
-        for (int i = 0; i < n; i++) {
-            if (dfn[i] == -1) {
-                stk.clear();
-                dfs(i);
-            }
-        }
-        return {cnt, edges};
-    }
-};
-```
-
-## DSU On Tree
-
-```c++
-struct FreqBuckets {
-	vector<int> occ;
-	vector<int> freq;
-	FreqBuckets(int n, int maxC) : occ(maxC + 1, 0), freq(n + 1) { }
-
-	void add(int x, int mul) {
-		if (mul == +1) {
-			occ[x]++;
-			freq[occ[x]]++;
-		}
-		else if (mul == -1) {
-			freq[occ[x]]--;
-			occ[x]--;
-		}
-		else assert(false);
-	}
-};
-
-int main() {
-	ios::sync_with_stdio(false);
-	cin.tie(0);
-
-	int n,m; cin >> n >> m;
-
-	vector<int> c(n);
-	for (int i = 0; i < n; i++)
-		cin >> c[i];
-
-	vector<vector<int>> g(n);
-	for (int i = 0; i + 1 < n; i++) {
-		int u,v; cin >> u >> v; u--; v--;
-		g[u].emplace_back(v);
-		g[v].emplace_back(u);
-	}
-
-	vector<int> sz(n, 1);
-	function<void(int, int)> dfs_hld = [&](int u, int p) {
-		if (p != -1) {
-			auto it = find(g[u].begin(), g[u].end(), p);
-			assert(it != g[u].end());
-			g[u].erase(it);
-		}
-
-		for (auto& v : g[u]) {
-			dfs_hld(v, u);
-			sz[u] += sz[v];
-			if (sz[v] > sz[g[u][0]])
-				swap(v, g[u][0]);
-		}
-	};
-	dfs_hld(0, -1);
-
-	vector<vector<pair<int, int>>> qry(n);
-	for (int i = 0; i < m; i++) {
-		int v,k; cin >> v >> k; v--;
-		qry[v].emplace_back(k, i);
-	}
-
-	const int maxC = 100000;
-	FreqBuckets cnt(n, maxC);
-	vector<int> ans(m, -1);
-
-	function<void(int, int)> dfs_addonly = [&](int u, int mul) {
-		cnt.add(c[u], mul);
-		for (auto& v : g[u])
-			dfs_addonly(v, mul);
-	};
-
-	function<void(int)> dfs_solve = [&](int u) {
-		for (auto& v : g[u]) {
-			if (v == g[u][0]) continue;
-			dfs_solve(v);
-			dfs_addonly(v, -1);
-		}
-
-		if (!g[u].empty())
-			dfs_solve(g[u][0]);
-		cnt.add(c[u], +1);
-		for (auto& v : g[u]) {
-			if (v == g[u][0]) continue;
-			dfs_addonly(v, +1);
-		}
-
-		for (auto& [k, i] : qry[u])
-			ans[i] = (k <= n ? cnt.freq[k] : 0);
-	};
-	dfs_solve(0);
-
-	for (int i = 0; i < m; i++)
-		cout << ans[i] << "\n";
-
-	return 0;
-}
-```
-
-## Edge Biconnected Component
-
-```c++
-using i64 = long long;
-
-std::set<std::pair<int, int>> E;
-struct EBCC {
-    int n;
-    std::vector<std::vector<int>> adj;
-    std::vector<int> stk;
-    std::vector<int> dfn, low, bel;
-    int cur, cnt;
-
-    EBCC() {}
-    EBCC(int n) {
-        init(n);
-    }
-
-    void init(int n) {
-        this->n = n;
-        adj.assign(n, {});
-        dfn.assign(n, -1);
-        low.resize(n);
-        bel.assign(n, -1);
-        stk.clear();
-        cur = cnt = 0;
-    }
-
-    void addEdge(int u, int v) {
-        adj[u].push_back(v);
-        adj[v].push_back(u);
-    }
-
-    void dfs(int x, int p) {
-        dfn[x] = low[x] = cur++;
-        stk.push_back(x);
-
-        for (auto y : adj[x]) {
-            if (y == p) {
-                continue;
-            }
-            if (dfn[y] == -1) {
-                E.emplace(x, y);
-                dfs(y, x);
-                low[x] = std::min(low[x], low[y]);
-            } else if (bel[y] == -1 && dfn[y] < dfn[x]) {
-                E.emplace(x, y);
-                low[x] = std::min(low[x], dfn[y]);
-            }
-        }
-
-        if (dfn[x] == low[x]) {
-            int y;
-            do {
-                y = stk.back();
-                bel[y] = cnt;
-                stk.pop_back();
-            } while (y != x);
-            cnt++;
-        }
-    }
-
-    std::vector<int> work() {
-        dfs(0, -1);
-        return bel;
-    }
-
-    struct Graph {
-        int n;
-        std::vector<std::pair<int, int>> edges;
-        std::vector<int> siz;
-        std::vector<int> cnte;
-    };
-    Graph compress() {
-        Graph g;
-        g.n = cnt;
-        g.siz.resize(cnt);
-        g.cnte.resize(cnt);
-        for (int i = 0; i < n; i++) {
-            g.siz[bel[i]]++;
-            for (auto j : adj[i]) {
-                if (bel[i] < bel[j]) {
-                    g.edges.emplace_back(bel[i], bel[j]);
-                } else if (i < j) {
-                    g.cnte[bel[i]]++;
-                }
-            }
-        }
-        return g;
-    }
-};
-```
-
-## Two Sat
+其中 $f(a, b)$ 为图上 $a\rightarrow b$ 的路径数，带有障碍格点的路径计数问题可以直接做一个 $O(nm)$ 的 dp，则 $f$ 易求。最终复杂度 $O(nm)$。
 
 ```cpp
-struct TwoSat {
-    int n;
-    std::vector<std::vector<int>> e;
-    std::vector<bool> ans;
-    TwoSat(int n) : n(n), e(2 * n), ans(n) {}
-    void addClause(int u, bool f, int v, bool g) {
-        e[2 * u + !f].push_back(2 * v + g);
-        e[2 * v + !g].push_back(2 * u + f);
-    }
-    bool satisfiable() {
-        std::vector<int> id(2 * n, -1), dfn(2 * n, -1), low(2 * n, -1);
-        std::vector<int> stk;
-        int now = 0, cnt = 0;
-        std::function<void(int)> tarjan = [&](int u) {
-            stk.push_back(u);
-            dfn[u] = low[u] = now++;
-            for (auto v : e[u]) {
-                if (dfn[v] == -1) {
-                    tarjan(v);
-                    low[u] = std::min(low[u], low[v]);
-                } else if (id[v] == -1) {
-                    low[u] = std::min(low[u], dfn[v]);
-                }
-            }
-            if (dfn[u] == low[u]) {
-                int v;
-                do {
-                    v = stk.back();
-                    stk.pop_back();
-                    id[v] = cnt;
-                } while (v != u);
-                ++cnt;
-            }
-        };
-        for (int i = 0; i < 2 * n; ++i) if (dfn[i] == -1) tarjan(i);
-        for (int i = 0; i < n; ++i) {
-            if (id[2 * i] == id[2 * i + 1]) return false;
-            ans[i] = id[2 * i] > id[2 * i + 1];
-        }
-        return true;
-    }
-    std::vector<bool> answer() { return ans; }
-};
+#include <cstring>
+#include <iostream>
+#include <vector>
 
+using namespace std;
+
+using ll = long long;
+const int MOD = 1e9 + 7;
+const int SIZE = 3010;
+
+char board[SIZE][SIZE];
+int dp[SIZE][SIZE];
+
+int f(int x1, int y1, int x2, int y2) {
+  memset(dp, 0, sizeof dp);
+
+  dp[x1][y1] = board[x1][y1] == '.';
+  for (int i = 1; i <= x2; i++) {
+    for (int j = 1; j <= y2; j++) {
+      if (board[i][j] == '#') {
+        continue;
+      }
+      dp[i][j] = (dp[i][j] + dp[i - 1][j]) % MOD;
+      dp[i][j] = (dp[i][j] + dp[i][j - 1]) % MOD;
+    }
+  }
+  return dp[x2][y2] % MOD;
+}
+
+int main() {
+  ios::sync_with_stdio(false);
+  cin.tie(nullptr);
+  cout.tie(nullptr);
+
+  int n, m;
+  cin >> n >> m;
+
+  for (int i = 1; i <= n; i++) {
+    cin >> (board[i] + 1);
+  }
+
+  ll f11 = f(1, 2, n - 1, m);
+  ll f12 = f(1, 2, n, m - 1);
+  ll f21 = f(2, 1, n - 1, m);
+  ll f22 = f(2, 1, n, m - 1);
+
+  ll ans = ((f11 * f22) % MOD - (f12 * f21) % MOD + MOD) % MOD;
+  cout << ans << '\n';
+
+  return 0;
+}
 ```
+
+题意：有一个 $n\times n$ 的棋盘，一个棋子从 $(x, y)$ 只能走到 $(x, y+1)$ 或 $(x + 1, y)$，有 $k$ 个棋子，一开始第 $i$ 个棋子放在 $(1, a_i)$，最终要到 $(n, b_i)$，路径要两两不相交，求方案数对 $10^9+7$ 取模。$1\le n\le 10^5$，$1\le k\le 100$，保证 $1\le a_1<a_2<\dots<a_n\le n$，$1\le b_1<b_2<\dots<b_n\le n$。
+
+观察到如果路径不相交就一定是 $a_i$ 到 $b_i$，因此 LGV 引理中一定有 $\sigma(S)_i=i$，不需要考虑符号问题。边权设为 $1$，直接套用引理即可。
+
+从 $(1, a_i)$ 到 $(n, b_j)$ 的路径条数相当于从 $n-1+b_j-a_i$ 步中选 $n-1$ 步向下走，所以 $e(A_i, B_j)=\binom{n-1+b_j-a_i}{n-1}$。
+
+行列式可以使用高斯消元求。
+
+复杂度为 $O(n+k(k^2 + \log p))$，其中 $\log p$ 是求逆元复杂度。
+
+```cpp
+#include <algorithm>
+#include <cstdio>
+
+typedef long long ll;
+
+const int K = 105;
+const int N = 100005;
+const int mod = 1e9 + 7;
+
+int T, n, k, a[K], b[K], fact[N << 1], m[K][K];
+
+int qpow(int x, int y) {
+  int out = 1;
+  while (y) {
+    if (y & 1) out = (ll)out * x % mod;
+    x = (ll)x * x % mod;
+    y >>= 1;
+  }
+  return out;
+}
+
+int c(int x, int y) {
+  return (ll)fact[x] * qpow(fact[y], mod - 2) % mod *
+         qpow(fact[x - y], mod - 2) % mod;
+}
+
+int main() {
+  fact[0] = 1;
+  for (int i = 1; i < N * 2; ++i) fact[i] = (ll)fact[i - 1] * i % mod;
+
+  scanf("%d", &T);
+
+  while (T--) {
+    scanf("%d%d", &n, &k);
+
+    for (int i = 1; i <= k; ++i) scanf("%d", a + i);
+    for (int i = 1; i <= k; ++i) scanf("%d", b + i);
+
+    for (int i = 1; i <= k; ++i) {
+      for (int j = 1; j <= k; ++j) {
+        if (a[i] <= b[j])
+          m[i][j] = c(b[j] - a[i] + n - 1, n - 1);
+        else
+          m[i][j] = 0;
+      }
+    }
+
+    for (int i = 1; i < k; ++i) {
+      if (!m[i][i]) {
+        for (int j = i + 1; j <= k; ++j) {
+          if (m[j][i]) {
+            std::swap(m[i], m[j]);
+            break;
+          }
+        }
+      }
+      if (!m[i][i]) continue;
+      int inv = qpow(m[i][i], mod - 2);
+      for (int j = i + 1; j <= k; ++j) {
+        if (!m[j][i]) continue;
+        int mul = (ll)m[j][i] * inv % mod;
+        for (int p = i; p <= k; ++p) {
+          m[j][p] = (m[j][p] - (ll)m[i][p] * mul % mod + mod) % mod;
+        }
+      }
+    }
+
+    int ans = 1;
+
+    for (int i = 1; i <= k; ++i) ans = (ll)ans * m[i][i] % mod;
+
+    printf("%d\n", ans);
+  }
+
+  return 0;
+}
+```
+
+
+## Flow with bound
+
+在阅读这篇文章之前请先阅读 [最大流](./max-flow.md) 并确保自己熟练掌握最大流算法。
+
+### 概述
+
+上下界网络流本质是给流量网络的每一条边设置了流量上界 $c(u,v)$ 和流量下界 $b(u,v)$。也就是说，一种可行的流必须满足 $b(u,v) \leq f(u,v) \leq c(u,v)$。同时必须满足除了源点和汇点之外的其余点流量平衡。
+
+根据题目要求，我们可以使用上下界网络流解决不同问题。
+
+### 无源汇上下界可行流
+
+给定无源汇流量网络 $G$。询问是否存在一种标定每条边流量的方式，使得每条边流量满足上下界同时每一个点流量平衡。
+
+不妨假设每条边已经流了 $b(u,v)$ 的流量，设其为初始流。同时我们在新图中加入 $u$ 连向 $v$ 的流量为 $c(u,v) - b(u,v)$ 的边。考虑在新图上进行调整。
+
+由于最大流需要满足初始流量平衡条件（最大流可以看成是下界为 $0$ 的上下界最大流），但是构造出来的初始流很有可能不满足初始流量平衡。假设一个点初始流入流量减初始流出流量为 $M$。
+
+若 $M=0$，此时流量平衡，不需要附加边。
+
+若 $M>0$，此时入流量过大，需要新建附加源点 $S'$，$S'$ 向其连流量为 $M$ 的附加边。
+
+若 $M<0$，此时出流量过大，需要新建附加汇点 $T'$，其向 $T'$ 连流量为 $-M$ 的附加边。
+
+如果附加边满流，说明这一个点的流量平衡条件可以满足，否则这个点的流量平衡条件不满足。（因为原图加上附加流之后才会满足原图中的流量平衡。）
+
+在建图完毕之后跑 $S'$ 到 $T'$ 的最大流，若 $S'$ 连出去的边全部满流，则存在可行流，否则不存在。
+
+### 有源汇上下界可行流
+
+给定有源汇流量网络 $G$。询问是否存在一种标定每条边流量的方式，使得每条边流量满足上下界同时除了源点和汇点每一个点流量平衡。
+
+假设源点为 $S$，汇点为 $T$。
+
+则我们可以加入一条 $T$ 到 $S$ 的上界为 $\infty$，下界为 $0$ 的边转化为无源汇上下界可行流问题。
+
+若有解，则 $S$ 到 $T$ 的可行流流量等于 $T$ 到 $S$ 的附加边的流量。
+
+### 有源汇上下界最大流
+
+给定有源汇流量网络 $G$。询问是否存在一种标定每条边流量的方式，使得每条边流量满足上下界同时除了源点和汇点每一个点流量平衡。如果存在，询问满足标定的最大流量。
+
+我们找到网络上的任意一个可行流。如果找不到解就可以直接结束。
+
+否则我们考虑删去所有附加边之后的残量网络并且在网络上进行调整。
+
+我们在残量网络上再跑一次 $S$ 到 $T$ 的最大流，将可行流流量和最大流流量相加即为答案。
+
+"一个非常易错的问题"
+$S$ 到 $T$ 的最大流直接在跑完有源汇上下界可行的残量网络上跑。
+千万不可以在原来的流量网络上跑。
+
+### 有源汇上下界最小流
+
+给定有源汇流量网络 $G$。询问是否存在一种标定每条边流量的方式，使得每条边流量满足上下界同时除了源点和汇点每一个点流量平衡。如果存在，询问满足标定的最小流量。
+
+类似的，我们考虑将残量网络中不需要的流退掉。
+
+我们找到网络上的任意一个可行流。如果找不到解就可以直接结束。
+
+否则我们考虑删去所有附加边之后的残量网络。
+
+我们在残量网络上再跑一次 $T$ 到 $S$ 的最大流，将可行流流量减去最大流流量即为答案。
+
+[AHOI 2014 支线剧情](https://loj.ac/problem/2226)
+    对于每条 $x$ 到 $y$ 花费 $v$ 的剧情边设上界为 $\infty$, 下界为 $1$。
+    对于每个点，向 $T$ 连边权 $c$, 上界 $\infty$, 下界为 $1$。
+    $S$ 点为 $1$ 号节点。
+    跑一次 上下界带源汇最小费用可行流 即可。
+    因为最小费用可行流解法与最小可行流类似，这里不再展开。

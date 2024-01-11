@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - oi-wiki
 
 env:
   python_version: "3.9"

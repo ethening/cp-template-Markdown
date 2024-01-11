@@ -1,4 +1,4 @@
-# Flow
+# Misc
 
 ## Eval expression
 
@@ -94,5 +94,39 @@ int evaluate(string& s) {
     op.pop();
   }
   return st.top();
+}
+```
+
+## Digit DP
+
+题目大意：给定一个区间 [l,r]，求其中满足条件 不含前导 0 且相邻两个数字相差至少为 2 的数字个数。
+
+```cpp
+int dfs(int x, int st, int op)  // op=1 =;op=0 <
+{
+  if (!x) return 1;
+  if (!op && ~f[x][st]) return f[x][st];
+  int maxx = op ? dim[x] : 9, ret = 0;
+  for (int i = 0; i <= maxx; i++) {
+    if (abs(st - i) < 2) continue;
+    if (st == 11 && i == 0)
+      ret += dfs(x - 1, 11, op & (i == maxx));
+    else
+      ret += dfs(x - 1, i, op & (i == maxx));
+  }
+  if (!op) f[x][st] = ret;
+  return ret;
+}
+
+int solve(int x) {
+  memset(f, -1, sizeof f);
+  dim.clear();
+  dim.push_back(-1);
+  int t = x;
+  while (x) {
+    dim.push_back(x % 10);
+    x /= 10;
+  }
+  return dfs(dim.size() - 1, 11, 1);
 }
 ```
